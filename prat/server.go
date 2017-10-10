@@ -45,13 +45,19 @@ func (s *Server) Start(port int) {
 	// start tcp listener on address
 	listener, err := net.Listen("tcp", address)
 	s.Log(fmt.Sprintf("Server started, listening on port %d", port))
-	Check(err)
+	if err != nil {
+		s.Fatal(err)
+		panic(err)
+	}
 
 	// start go routine accepting connection
 	go func() {
 		for {
 			conn, err := listener.Accept()
-			Check(err)
+			if err != nil {
+				s.Fatal(err)
+				panic(err)
+			}
 			// send connection to new connection channel
 			s.NewConCh <- conn
 		}
@@ -80,7 +86,9 @@ func (s *Server) OnNewMessage(message Message) {
 	enc := gob.NewEncoder(&buf)
 	// encode message
 	err := enc.Encode(message)
-	Check(err)
+	if err != nil {
+		s.Fatal(err)
+	}
 
 	// loop through connections
 	for conn := range s.Connections {
@@ -136,4 +144,8 @@ func (s *Server) OnDeadConnection(conn net.Conn) {
 
 func (s *Server) Log(message string) {
 	s.Logger.Printf("[%s] %s\n", time.Now().Format("2006-01-02 15:04:05"), message)
+}
+
+func (s *Server) Fatal(err error) {
+	s.Logger.Fatalf("[%s] <ERROR> %v\n", time.Now().Format("2006-01-02 15:04:05"), err)
 }
