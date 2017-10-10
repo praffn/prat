@@ -11,38 +11,41 @@ import (
 type MessageHandler func(Message)
 
 type Client struct {
-	Conn net.Conn
-	Name string
+	Conn            net.Conn
+	Name            string
+	messageHandlers []MessageHandler
 }
 
 // Returns a Client connected to the given address
 // The client will be listening to new messages from the host
-func NewClient(address, name string, messageHandler MessageHandler) *Client {
+func NewClient(address, name string) *Client {
 	// connect to host
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
 		panic(err)
 	}
 
-	// start go routine listening for messages
-	go func() {
-		for {
-			var message Message
-			// decode received message
-			dec := gob.NewDecoder(conn)
-			err := dec.Decode(&message)
-			if err != nil {
-				panic(err)
-			}
-			// invoke messagehandler with decoded message
+	client := Client{
+		Conn:            conn,
+		Name:            name,
+		messageHandlers: make([]MessageHandler, 0),
+	}
+
+	go client.Listen(conn)
+	return &client
+}
+
+func (c *Client) Listen(conn net.Conn) {
+	for {
+		var message Message
+		dec := gob.NewDecoder(conn)
+		err := dec.Decode(&message)
+		if err != nil {
+			panic(err)
+		}
+		for _, messageHandler := range c.messageHandlers {
 			messageHandler(message)
 		}
-	}()
-
-	// return new client struct
-	return &Client{
-		Conn: conn,
-		Name: name,
 	}
 }
 
@@ -63,4 +66,8 @@ func (c *Client) SendMessage(message string) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func (c *Client) AddMessageHandler(messageHandler MessageHandler) {
+	c.messageHandlers = append(c.messageHandlers, messageHandler)
 }
