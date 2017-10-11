@@ -3,29 +3,42 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"prat/prat"
-	"time"
 )
-
-var defaultLogName = fmt.Sprintf("%s.prat.log", time.Now().Format("20060102150405"))
 
 var name = flag.String("name", "anon", "your name")
 var host = flag.String("host", "localhost", "the host to connect to")
 var port = flag.Int("port", prat.DefaultPort, "the port to connect to")
 var server = flag.Bool("server", false, "starts a server instead of a client")
-var logFile = flag.String("log", defaultLogName, "file to output logging information to")
+var logFile = flag.String("log", "", "file to output logging information to")
+var silent = flag.Bool("silent", false, "no log output")
 
 func main() {
+
 	flag.Parse()
 	if *server {
-		file, err := os.Create(*logFile)
-		if err != nil {
-			panic(err)
+		var logger *log.Logger
+		if *silent {
+			// if silent flag has been set, use a discard logger
+			logger = log.New(ioutil.Discard, "", 0)
+		} else {
+			if *logFile != "" {
+				// if a logfile has been specified, we create the file
+				// and log to it
+				file, err := os.Create(*logFile)
+				if err != nil {
+					panic(err)
+				}
+				logger = log.New(file, "", log.Ldate|log.Ltime)
+			} else {
+				// otherwise, output log to stdout
+				logger = log.New(os.Stdout, "", log.Ldate|log.Ltime)
+			}
 		}
-		logger := log.New(file, "", 0)
-		server := prat.NewServerWithLogger(logger)
+		server := prat.NewServer(logger)
 		server.Start(*port)
 	} else {
 		address := fmt.Sprintf("%s:%d", *host, *port)

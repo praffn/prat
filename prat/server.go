@@ -7,8 +7,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"os"
-	"time"
 )
 
 type Server struct {
@@ -19,17 +17,7 @@ type Server struct {
 	Logger      *log.Logger
 }
 
-func NewServer() *Server {
-	return &Server{
-		Connections: make(map[net.Conn]bool),
-		NewConCh:    make(chan net.Conn),
-		DeadConCh:   make(chan net.Conn),
-		Messages:    make(chan Message),
-		Logger:      log.New(os.Stdout, "", 0),
-	}
-}
-
-func NewServerWithLogger(logger *log.Logger) *Server {
+func NewServer(logger *log.Logger) *Server {
 	return &Server{
 		Connections: make(map[net.Conn]bool),
 		NewConCh:    make(chan net.Conn),
@@ -44,9 +32,9 @@ func (s *Server) Start(port int) {
 	address := fmt.Sprintf(":%d", port)
 	// start tcp listener on address
 	listener, err := net.Listen("tcp", address)
-	s.Log(fmt.Sprintf("Server started, listening on port %d", port))
+	s.Logger.Printf("Server started, listening on port %d\n", port)
 	if err != nil {
-		s.Fatal(err)
+		s.Logger.Fatal(err)
 		panic(err)
 	}
 
@@ -55,7 +43,7 @@ func (s *Server) Start(port int) {
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
-				s.Fatal(err)
+				s.Logger.Fatal(err)
 				panic(err)
 			}
 			// send connection to new connection channel
@@ -87,16 +75,16 @@ func (s *Server) OnNewMessage(message Message) {
 	// encode message
 	err := enc.Encode(message)
 	if err != nil {
-		s.Fatal(err)
+		s.Logger.Fatal(err)
 	}
 
 	// loop through connections
 	for conn := range s.Connections {
-		s.Log(fmt.Sprintf("Sending message to %s", conn.RemoteAddr().String()))
+		s.Logger.Printf("Sending message to %s\n", conn.RemoteAddr().String())
 		// write to connection encoded message
 		conn.Write(buf.Bytes())
 		if err != nil {
-			s.Log(fmt.Sprintf("Error sending message to %s", conn.RemoteAddr().String()))
+			s.Logger.Printf("Error sending message to %s\n", conn.RemoteAddr().String())
 			// if error while writing to connection
 			// send connection to dead connection channel
 			s.DeadConCh <- conn
@@ -105,7 +93,7 @@ func (s *Server) OnNewMessage(message Message) {
 }
 
 func (s *Server) OnNewConnection(conn net.Conn) {
-	s.Log(fmt.Sprintf("New connection from %s", conn.RemoteAddr().String()))
+	s.Logger.Printf("New connection from %s\n", conn.RemoteAddr().String())
 	// add to connection map received connection
 	s.Connections[conn] = true
 	// start go routine listening on connection
@@ -122,14 +110,14 @@ func (s *Server) ConnectionListener(conn net.Conn) {
 		// decode received message
 		err := dec.Decode(&message)
 		if err == io.EOF {
-			s.Log(fmt.Sprintf("Connection from %s EOF'ed", conn.RemoteAddr().String()))
+			s.Logger.Printf("Connection from %s EOF'ed\n", conn.RemoteAddr().String())
 			// if eof send connection to dead connection channel
 			s.DeadConCh <- conn
 			break
 		} else if err != nil {
 			panic(err)
 		} else {
-			s.Log(fmt.Sprintf("Received message from %s: \"%s\"", conn.RemoteAddr().String(), message.Body))
+			s.Logger.Printf("Received message from %s: \"%s\"\n", conn.RemoteAddr().String(), message.Body)
 			// send decoded message to message channel
 			s.Messages <- message
 		}
@@ -137,15 +125,7 @@ func (s *Server) ConnectionListener(conn net.Conn) {
 }
 
 func (s *Server) OnDeadConnection(conn net.Conn) {
-	s.Log(fmt.Sprintf("Connection from %s disconnected", conn.RemoteAddr().String()))
+	s.Logger.Printf("Connection from %s disconnected\n", conn.RemoteAddr().String())
 	// remove connection from connections map
 	delete(s.Connections, conn)
-}
-
-func (s *Server) Log(message string) {
-	s.Logger.Printf("[%s] %s\n", time.Now().Format("2006-01-02 15:04:05"), message)
-}
-
-func (s *Server) Fatal(err error) {
-	s.Logger.Fatalf("[%s] <ERROR> %v\n", time.Now().Format("2006-01-02 15:04:05"), err)
 }
