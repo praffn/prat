@@ -6,13 +6,16 @@ import (
 	"log"
 	"os"
 	"prat/prat"
+	"time"
 )
+
+var defaultLogName = fmt.Sprintf("%s.prat.log", time.Now().Format("20060102150405"))
 
 var name = flag.String("name", "anon", "your name")
 var host = flag.String("host", "localhost", "the host to connect to")
 var port = flag.Int("port", prat.DefaultPort, "the port to connect to")
 var server = flag.Bool("server", false, "starts a server instead of a client")
-var logFile = flag.String("log", "prat.log", "file to output logging information to")
+var logFile = flag.String("log", defaultLogName, "file to output logging information to")
 
 func main() {
 	flag.Parse()
