@@ -87,11 +87,29 @@ func (cui *ClientUI) ParseCommand(command string, rest []string) {
 		if len(rest) > 0 {
 			cui.client.Name = rest[0]
 		}
+	case "exit":
+		cui.ui.Quit()
 	case "help":
 		cui.PrintHelp()
 	}
 }
 
 func (cui *ClientUI) PrintHelp() {
-	cui.history.Append(tui.NewPadder(1, 1, tui.NewLabel("Print Help Here")))
+	cui.history.Append(
+		tui.NewPadder(1, 1, tui.NewVBox(
+			tui.NewLabel("Commands:"),
+			tui.NewHBox(
+				tui.NewLabel("/setname <name>"),
+				tui.NewPadder(1, 0, tui.NewLabel("Sets your name")),
+			),
+			tui.NewHBox(
+				tui.NewLabel("/help"),
+				tui.NewPadder(1, 0, tui.NewLabel("Prints help")),
+			),
+			tui.NewHBox(
+				tui.NewLabel("/exit"),
+				tui.NewPadder(1, 0, tui.NewLabel("Terminates the session")),
+			),
+		)),
+	)
 }
