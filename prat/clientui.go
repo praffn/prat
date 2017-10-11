@@ -2,6 +2,7 @@ package prat
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	tui "github.com/marcusolsson/tui-go"
@@ -38,6 +39,7 @@ func NewClientUI(client *Client) *ClientUI {
 	}
 
 	client.AddMessageHandler(cui.AddMessageToHistory)
+	client.AddErrorHandler(cui.OnError)
 	input.OnSubmit(cui.OnMessageSubmit)
 
 	return &cui
@@ -112,4 +114,10 @@ func (cui *ClientUI) PrintHelp() {
 			),
 		)),
 	)
+}
+
+func (cui *ClientUI) OnError() {
+	cui.ui.Quit()
+	fmt.Println("Terminating")
+	os.Exit(2)
 }

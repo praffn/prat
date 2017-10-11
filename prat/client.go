@@ -11,11 +11,13 @@ import (
 // MessageHandler is a callback which is invoked
 // when the a new message is received
 type MessageHandler func(Message)
+type ErrorHandler func()
 
 type Client struct {
 	Conn            net.Conn
 	Name            string
 	messageHandlers []MessageHandler
+	errorHandlers   []ErrorHandler
 }
 
 // Returns a Client connected to the given address
@@ -34,6 +36,7 @@ func NewClient(address, name string) *Client {
 		Conn:            conn,
 		Name:            name,
 		messageHandlers: make([]MessageHandler, 0),
+		errorHandlers:   make([]ErrorHandler, 0),
 	}
 
 	go client.Listen(conn)
@@ -41,12 +44,21 @@ func NewClient(address, name string) *Client {
 }
 
 func (c *Client) Listen(conn net.Conn) {
+	defer conn.Close()
 	for {
 		var message Message
 		dec := gob.NewDecoder(conn)
 		err := dec.Decode(&message)
 		if err != nil {
-			panic(err)
+			// an error occured when decoding packet
+			// exit with error and for the love of god
+			// close the connection
+			conn.Close()
+			fmt.Println("Server error occured")
+			for _, errorHandler := range c.errorHandlers {
+				errorHandler()
+			}
+			break
 		}
 		for _, messageHandler := range c.messageHandlers {
 			messageHandler(message)
@@ -75,4 +87,8 @@ func (c *Client) SendMessage(message string) {
 
 func (c *Client) AddMessageHandler(messageHandler MessageHandler) {
 	c.messageHandlers = append(c.messageHandlers, messageHandler)
+}
+
+func (c *Client) AddErrorHandler(errorHandler ErrorHandler) {
+	c.errorHandlers = append(c.errorHandlers, errorHandler)
 }
