@@ -2,7 +2,9 @@ package prat
 
 import (
 	"encoding/gob"
+	"fmt"
 	"net"
+	"os"
 	"time"
 )
 
@@ -22,7 +24,10 @@ func NewClient(address, name string) *Client {
 	// connect to host
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
-		panic(err)
+		// could not connect to host
+		// exit with error code
+		fmt.Printf("Could not connect to %s\n", address)
+		os.Exit(1)
 	}
 
 	client := Client{
